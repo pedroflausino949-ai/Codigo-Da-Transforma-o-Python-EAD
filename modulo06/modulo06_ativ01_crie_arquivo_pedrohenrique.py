@@ -19,13 +19,16 @@ conteudo = [
 
 #3. Escrevendo no arquivo
 with open(nome_arquivo, "w", encoding="utf-8") as arquivo:
-(arquivo).writelines (conteudo)
-print (f" Arquivo {nome_arquivo} criado e escrito com sucesso!")
+    arquivo.writelines(conteudo)
 
+print(f" Arquivo {nome_arquivo} criado e escrito com sucesso!")
 
 #4. Lendo o conteúdo do arquivo
+
 # ---LEITURA
+
 print("\n--- Lendo o conteúdo do arquivo TXT ---")
 with open(nome_arquivo, "r", encoding="utf-8") as arquivo:
-(texto) = arquivo.read()
+    texto = arquivo.read()
+
 print(texto)
