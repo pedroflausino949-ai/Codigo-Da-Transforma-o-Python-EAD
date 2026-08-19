@@ -1,0 +1,304 @@
+"""
+MODULO 8 - PROGRAMACAO ORIENTADA A OBJETOS
+Atividade pratica - 3 exercicios e desafio extra
+Autor: Pedro Henrique
+"""
+
+class Carro:
+    def __init__(self, marca, modelo):
+        self.marca = marca
+        self.modelo = modelo
+
+    def exibir_info(self):
+        print("Marca:", self.marca)
+        print("Modelo:", self.modelo)
+
+
+def exercicio_1():
+    print("\n" + "=" * 50)
+    print("EXERCICIO 1 - CLASSES E OBJETOS")
+    print("=" * 50)
+
+    carro1 = Carro("Toyota", "Corolla")
+    carro2 = Carro("Honda", "Civic")
+
+    print("\nCarro 1:")
+    carro1.exibir_info()
+
+    print("\nCarro 2:")
+    carro2.exibir_info()
+
+
+class CarroEletrico(Carro):
+    def __init__(self, marca, modelo, autonomia):
+        super().__init__(marca, modelo)
+        self.autonomia = autonomia
+
+    def exibir_info(self):
+        print("Marca:", self.marca)
+        print("Modelo:", self.modelo)
+        print("Autonomia:", self.autonomia, "km")
+
+
+def exercicio_2():
+    print("\n" + "=" * 50)
+    print("EXERCICIO 2 - HERANCA")
+    print("=" * 50)
+
+    carro = CarroEletrico("Tesla", "Model 3", 500)
+
+    print("\nCarro eletrico:")
+    carro.exibir_info()
+
+
+class Veiculo:
+    def __init__(self, marca, modelo, ano):
+        self.marca = marca
+        self.modelo = modelo
+        self.ano = ano
+
+    def __str__(self):
+        return f"{self.marca} {self.modelo} - Ano: {self.ano}"
+
+
+def exercicio_3():
+    print("\n" + "=" * 50)
+    print("EXERCICIO 3 - __init__ E __str__")
+    print("=" * 50)
+
+    veiculo = Veiculo("Volkswagen", "Gol", 2020)
+
+    print("\nVeiculo:")
+    print(veiculo)
+
+class Livro:
+    def __init__(self, titulo, autor):
+        self.titulo = titulo
+        self.autor = autor
+        self.disponivel = True
+
+    def __str__(self):
+        if self.disponivel:
+            status = "Disponivel"
+        else:
+            status = "Emprestado"
+
+        return f"{self.titulo} - {self.autor} | {status}"
+
+
+class Biblioteca:
+    def __init__(self):
+        self.livros = []
+        self.emprestimos = []
+
+    def adicionar_livro(self, livro):
+        self.livros.append(livro)
+        print("Livro adicionado com sucesso!")
+
+    def listar_livros(self):
+        print("\n--- LIVROS DA BIBLIOTECA ---")
+
+        if len(self.livros) == 0:
+            print("Nenhum livro cadastrado.")
+            return
+
+        for numero, livro in enumerate(self.livros, 1):
+            print(numero, "-", livro)
+
+    def buscar_livro(self, titulo):
+        for livro in self.livros:
+            if livro.titulo.lower() == titulo.lower():
+                return livro
+        return None
+
+    def emprestar_livro(self, titulo, pessoa):
+        livro = self.buscar_livro(titulo)
+
+        if livro is None:
+            print("Livro nao encontrado.")
+            return
+
+        if not livro.disponivel:
+            print("Este livro ja esta emprestado.")
+            return
+
+        livro.disponivel = False
+        self.emprestimos.append({
+            "livro": livro.titulo,
+            "pessoa": pessoa
+        })
+
+        print("Emprestimo realizado com sucesso!")
+
+    def devolver_livro(self, titulo):
+        livro = self.buscar_livro(titulo)
+
+        if livro is None:
+            print("Livro nao encontrado.")
+            return
+
+        if livro.disponivel:
+            print("Este livro ja esta disponivel.")
+            return
+
+        livro.disponivel = True
+
+        for emprestimo in self.emprestimos:
+            if emprestimo["livro"].lower() == titulo.lower():
+                self.emprestimos.remove(emprestimo)
+                break
+
+        print("Livro devolvido com sucesso!")
+
+    def listar_emprestimos(self):
+        print("\n--- EMPRESTIMOS ---")
+
+        if len(self.emprestimos) == 0:
+            print("Nenhum emprestimo realizado.")
+            return
+
+        for emprestimo in self.emprestimos:
+            print(
+                "Livro:", emprestimo["livro"],
+                "| Pessoa:", emprestimo["pessoa"]
+            )
+
+biblioteca = Biblioteca()
+
+biblioteca.adicionar_livro(
+    Livro("Dom Casmurro", "Machado de Assis")
+)
+
+biblioteca.adicionar_livro(
+    Livro("O Cortico", "Aluisio Azevedo")
+)
+
+biblioteca.adicionar_livro(
+    Livro("O Pequeno Principe", "Antoine de Saint-Exupery")
+)
+
+
+def menu_biblioteca():
+    while True:
+        print("\n" + "=" * 50)
+        print("SISTEMA DE BIBLIOTECA")
+        print("=" * 50)
+        print("1 - Adicionar livro")
+        print("2 - Listar livros")
+        print("3 - Buscar livro")
+        print("4 - Emprestar livro")
+        print("5 - Devolver livro")
+        print("6 - Listar emprestimos")
+        print("0 - Voltar")
+        print("=" * 50)
+
+        opcao = input("Escolha uma opcao: ").strip()
+
+        if opcao == "1":
+            titulo = input("Titulo: ").strip()
+            autor = input("Autor: ").strip()
+
+            if titulo == "" or autor == "":
+                print("Preencha todos os campos.")
+            else:
+                biblioteca.adicionar_livro(Livro(titulo, autor))
+
+        elif opcao == "2":
+            biblioteca.listar_livros()
+
+        elif opcao == "3":
+            titulo = input("Digite o titulo: ").strip()
+            livro = biblioteca.buscar_livro(titulo)
+
+            if livro is None:
+                print("Livro nao encontrado.")
+            else:
+                print("Livro encontrado:", livro)
+
+        elif opcao == "4":
+            titulo = input("Titulo do livro: ").strip()
+            pessoa = input("Nome da pessoa: ").strip()
+
+            if pessoa == "":
+                print("Digite o nome da pessoa.")
+            else:
+                biblioteca.emprestar_livro(titulo, pessoa)
+
+        elif opcao == "5":
+            titulo = input("Titulo do livro: ").strip()
+            biblioteca.devolver_livro(titulo)
+
+        elif opcao == "6":
+            biblioteca.listar_emprestimos()
+
+        elif opcao == "0":
+            print("Voltando ao menu principal...")
+            break
+
+        else:
+            print("Opcao invalida.")
+
+
+
+def main():
+    while True:
+        print("\n" + "=" * 50)
+        print("MODULO 8 - PROGRAMACAO ORIENTADA A OBJETOS")
+        print("=" * 50)
+        print("1 - Executar Exercício 1")
+        print("2 - Executar Exercício 2")
+        print("3 - Executar Exercício 3")
+        print("4 - Abrir Desafio Extra")
+        print("5 - Executar tudo")
+        print("0 - Sair")
+        print("=" * 50)
+
+        opcao = input("Escolha uma opcao: ").strip()
+
+        if opcao == "1":
+            exercicio_1()
+
+        elif opcao == "2":
+            exercicio_2()
+
+        elif opcao == "3":
+            exercicio_3()
+
+        elif opcao == "4":
+            menu_biblioteca()
+
+        elif opcao == "5":
+            exercicio_1()
+            exercicio_2()
+            exercicio_3()
+
+            print("\n" + "=" * 50)
+            print("DESAFIO EXTRA")
+            print("=" * 50)
+
+            biblioteca.listar_livros()
+
+            print("\nTestando emprestimo...")
+            biblioteca.emprestar_livro(
+                "Dom Casmurro",
+                "Pedro"
+            )
+
+            biblioteca.listar_livros()
+            biblioteca.listar_emprestimos()
+
+            print("\nTestando devolucao...")
+            biblioteca.devolver_livro("Dom Casmurro")
+
+            biblioteca.listar_livros()
+
+        elif opcao == "0":
+            print("\nPrograma encerrado.")
+            break
+
+        else:
+            print("\nOpcao invalida. Digite um numero do menu.")
+
+
+if __name__ == "__main__":
+    main()
