@@ -29,7 +29,7 @@ agora = datetime.now()
 print("Data:", agora.strftime("%d/%m/%Y"))
 print("Hora:", agora.strftime("%H:%M:%S"))
 
-from faker import Faker
+from Faker import Faker
 
 fake = Faker("pt_BR")
 
