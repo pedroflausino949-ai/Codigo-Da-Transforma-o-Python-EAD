@@ -1,4 +1,5 @@
 '''
+
 Ciclo de vida do projeto:
 1. Planejamento: Definir os requisitos do sistema, identificar as necessidades do negócio e dos clientes, 
 e criar um plano de desenvolvimento.
@@ -17,44 +18,42 @@ para que os usuários possam interagir de forma mais intuitiva e agradável.
 
 '''
 
-import unittest
+# Isso é um comentário de linha única.
+# print('Olá, Mundo!')
+# print('\n-------------------------------------------------------------\n')
 
 
-class Calculadora:
-
-    def soma(self, a, b):
-        return a + b
-
-    def subtracao(self, a, b):
-        return a - b
-
-    def multiplicacao(self, a, b):
-        return a * b
-
-    def divisao(self, a, b):
-        if b == 0:
-            raise ValueError("Divisão por zero!")
-        return a / b
+print('\n' + '-' * 48 + '\n')
+print('Bem-vindo ao Sistema de vendas - açaiteria!\n')
+print('1 - Cadastrar produto')
+print('2 - Listar produtos')
+print('3 - Realizar venda')
+print('0 - Sair do Sistema')
+print('\n--------------------------------------\n')
 
 
-class TestCalculadora(unittest.TestCase):
-
-    def test_soma(self):
-        self.assertEqual(Calculadora().soma(2, 3), 5)
-
-    def test_subtracao(self):
-        self.assertEqual(Calculadora().subtracao(5, 3), 2)
-
-    def test_multiplicacao(self):
-        self.assertEqual(Calculadora().multiplicacao(4, 3), 12)
-
-    def test_divisao(self):
-        self.assertEqual(Calculadora().divisao(10, 2), 5)
-
-    def test_divisao_por_zero(self):
-        with self.assertRaises(ValueError):
-            Calculadora().divisao(10, 0)
 
 
-if __name__ == "__main__":
-    unittest.main()
+
+
+
+
+
+
+
+opcao__definida = int(input('Digite a opção desejada: '))
+
+if opcao__definida == 1:
+    print('Cadastrando produto...')
+
+elif opcao__definida == 2:
+    print('Listando produtos...')
+
+elif opcao__definida == 3:
+    print('Realizando venda...')
+
+elif opcao__definida == 0:
+    print('Saindo do Sistema...')
+    
+else:
+    print('Opção inválida, escolha novamente!')
