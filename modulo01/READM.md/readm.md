@@ -54,6 +54,14 @@ A aplicação permite cadastrar produtos, controlar o estoque, registrar vendas,
 ### Passo a Passo
 
 1. **Clonar ou baixar o repositório:**
-   ```bash
    git clone [https://github.com/seu-usuario/sistema-vendas-barbearia.git](https://github.com/seu-usuario/sistema-vendas-barbearia.git)
    cd sistema-vendas-barbearia
+
+2. **Executar a aplicação:**
+   python main.py
+   *(Substitua `main.py` pelo nome exato do seu arquivo Python).*
+
+---
+
+## 📝 Licença
+Este projeto foi desenvolvido para fins educacionais e de gestão prática para barbearias.
