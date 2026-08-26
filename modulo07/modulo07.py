@@ -9,7 +9,7 @@ def subtracao(a, b):
 def potencia(base, expoente):
     return base ** expoente
 
-import modulo07.meu_modelo07.utilidades as utilidades
+import modulo07.utilidades as utilidades
 
 print("=== Utilizando o módulo utilidades ===")
 

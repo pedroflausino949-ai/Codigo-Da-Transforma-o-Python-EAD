@@ -6,7 +6,7 @@ Dev: existe a interação com o usuario - Web Design (Front-End)
 '''
 import datetime
 from faker import Faker
-import modulo07.meu_modelo07.utilidades as utilidades
+import modulo07.utilidades as utilidades
 
 
 fake = Faker('pt_BR')
