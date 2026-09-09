@@ -7,22 +7,23 @@ Autor: Pedro Henrique
 Tecnologias:
 - Python
 - PostgreSQL
-- psycopg2
-- SQL
 
 Funcionalidades:
+- Criação das tabelas
 - Cadastro de clientes
 - Cadastro de produtos
 - Registro de vendas
-- Listagem de dados
+- Listagem de clientes, produtos e vendas
 - Atualização de clientes
 - Exclusão de clientes
-- Controle de estoque
+- Filtro de clientes por nome
+- Tratamento de erros
 =========================================================
 """
 
+import os
 import psycopg2
-from decimal import Decimal, InvalidOperation
+from psycopg2 import Error
 
 
 # =========================================================
@@ -30,11 +31,11 @@ from decimal import Decimal, InvalidOperation
 # =========================================================
 
 DB_CONFIG = {
-    "host": "localhost",
-    "database": "sistema_vendas",
-    "user": "postgres",
-    "password": "1234",
-    "port": "5432"
+    "dbname": os.getenv("DB_NAME", "meu_banco"),
+    "user": os.getenv("DB_USER", "meu_usuario"),
+    "password": os.getenv("DB_PASSWORD", "minha_senha"),
+    "host": os.getenv("DB_HOST", "localhost"),
+    "port": os.getenv("DB_PORT", "5432")
 }
 
 
@@ -44,19 +45,14 @@ DB_CONFIG = {
 
 def conectar():
     try:
-        conexao = psycopg2.connect(
-            host=DB_CONFIG["host"],
-            database=DB_CONFIG["database"],
-            user=DB_CONFIG["user"],
-            password=DB_CONFIG["password"],
-            port=DB_CONFIG["port"]
-        )
+        conn = psycopg2.connect(**DB_CONFIG)
+        print("\nConectado ao PostgreSQL com sucesso!")
+        return conn
 
-        return conexao
-
-    except psycopg2.Error as erro:
-        print("\n❌ Erro ao conectar ao PostgreSQL!")
-        print("Detalhes:", erro)
+    except Error as erro:
+        print("\nErro ao conectar ao PostgreSQL.")
+        print("Verifique o banco, usuário, senha e se o PostgreSQL está ligado.")
+        print(f"Detalhes: {erro}")
         return None
 
 
@@ -64,491 +60,319 @@ def conectar():
 # CRIAÇÃO DAS TABELAS
 # =========================================================
 
-def criar_tabelas():
-
-    conexao = conectar()
-
-    if conexao is None:
-        return False
-
-    cursor = None
+def criar_tabelas(conn):
+    cursor = conn.cursor()
 
     try:
-        cursor = conexao.cursor()
-
-        # -------------------------------------------------
-        # TABELA DE CLIENTES
-        # -------------------------------------------------
-
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS clientes (
                 id SERIAL PRIMARY KEY,
                 nome VARCHAR(100) NOT NULL,
-                email VARCHAR(150) UNIQUE NOT NULL
-            );
+                email VARCHAR(100) UNIQUE NOT NULL
+            )
         """)
-
-        # -------------------------------------------------
-        # TABELA DE PRODUTOS
-        # -------------------------------------------------
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS produtos (
                 id SERIAL PRIMARY KEY,
                 nome VARCHAR(100) NOT NULL,
-                preco DECIMAL(10,2) NOT NULL,
-                estoque INTEGER NOT NULL
-            );
+                preco NUMERIC(10, 2) NOT NULL CHECK (preco >= 0),
+                estoque INTEGER NOT NULL DEFAULT 0 CHECK (estoque >= 0)
+            )
         """)
-
-        # -------------------------------------------------
-        # TABELA DE VENDAS
-        # -------------------------------------------------
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS vendas (
                 id SERIAL PRIMARY KEY,
-                cliente_id INTEGER REFERENCES clientes(id),
-                produto_id INTEGER REFERENCES produtos(id),
-                quantidade INTEGER NOT NULL,
-                valor_total DECIMAL(10,2) NOT NULL,
-                data_venda TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
+                cliente_id INTEGER NOT NULL,
+                produto_id INTEGER NOT NULL,
+                quantidade INTEGER NOT NULL CHECK (quantidade > 0),
+                data_venda TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                FOREIGN KEY (cliente_id)
+                    REFERENCES clientes(id),
+
+                FOREIGN KEY (produto_id)
+                    REFERENCES produtos(id)
+            )
         """)
 
-        conexao.commit()
+        conn.commit()
+        print("Tabelas verificadas/criadas com sucesso!")
 
-        print("✅ Tabelas verificadas/criadas com sucesso!")
-
-        return True
-
-    except psycopg2.Error as erro:
-
-        conexao.rollback()
-
-        print("❌ Erro ao criar tabelas:")
-        print(erro)
-
-        return False
+    except Error as erro:
+        conn.rollback()
+        print(f"Erro ao criar tabelas: {erro}")
 
     finally:
-
-        if cursor:
-            cursor.close()
-
-        conexao.close()
+        cursor.close()
 
 
 # =========================================================
-# CADASTRAR CLIENTE
+# CLIENTES - INSERIR
 # =========================================================
 
-def cadastrar_cliente():
+def inserir_cliente(conn):
+    nome = input("Nome do cliente: ").strip()
+    email = input("E-mail do cliente: ").strip()
 
-    print("\n" + "=" * 50)
-    print("👤 CADASTRAR CLIENTE")
-    print("=" * 50)
-
-    nome = input("Digite o nome do cliente: ").strip()
-    email = input("Digite o e-mail do cliente: ").strip()
-
-    if nome == "":
-        print("❌ O nome é obrigatório.")
+    if not nome or not email:
+        print("Nome e e-mail são obrigatórios.")
         return
 
-    if email == "":
-        print("❌ O e-mail é obrigatório.")
-        return
-
-    conexao = conectar()
-
-    if conexao is None:
-        return
-
-    cursor = None
+    cursor = conn.cursor()
 
     try:
-
-        cursor = conexao.cursor()
-
         cursor.execute("""
             INSERT INTO clientes (nome, email)
-            VALUES (%s, %s);
+            VALUES (%s, %s)
         """, (nome, email))
 
-        conexao.commit()
+        conn.commit()
+        print("Cliente cadastrado com sucesso!")
 
-        print("\n✅ Cliente cadastrado com sucesso!")
-
-    except psycopg2.IntegrityError as erro:
-
-        conexao.rollback()
-
-        if "unique" in str(erro).lower():
-            print("❌ Esse e-mail já está cadastrado.")
-        else:
-            print("❌ Erro de integridade:", erro)
-
-    except psycopg2.Error as erro:
-
-        conexao.rollback()
-
-        print("❌ Erro ao cadastrar cliente:")
-        print(erro)
+    except Error as erro:
+        conn.rollback()
+        print(f"Erro ao cadastrar cliente: {erro}")
 
     finally:
-
-        if cursor:
-            cursor.close()
-
-        conexao.close()
+        cursor.close()
 
 
 # =========================================================
-# LISTAR CLIENTES
+# CLIENTES - CONSULTAR
 # =========================================================
 
-def listar_clientes():
-
-    conexao = conectar()
-
-    if conexao is None:
-        return
-
-    cursor = None
+def listar_clientes(conn):
+    cursor = conn.cursor()
 
     try:
-
-        cursor = conexao.cursor()
-
         cursor.execute("""
             SELECT id, nome, email
             FROM clientes
-            ORDER BY id;
+            ORDER BY id
         """)
 
         clientes = cursor.fetchall()
 
-        print("\n" + "=" * 70)
-        print("👥 CLIENTES CADASTRADOS")
-        print("=" * 70)
+        print("\n========== CLIENTES ==========")
 
         if not clientes:
-
             print("Nenhum cliente cadastrado.")
 
         else:
-
             for cliente in clientes:
-
                 print(
                     f"ID: {cliente[0]} | "
                     f"Nome: {cliente[1]} | "
                     f"E-mail: {cliente[2]}"
                 )
 
-    except psycopg2.Error as erro:
-
-        print("❌ Erro ao listar clientes:")
-        print(erro)
+    except Error as erro:
+        print(f"Erro ao consultar clientes: {erro}")
 
     finally:
-
-        if cursor:
-            cursor.close()
-
-        conexao.close()
+        cursor.close()
 
 
 # =========================================================
-# ATUALIZAR CLIENTE
+# CLIENTES - ATUALIZAR
 # =========================================================
 
-def atualizar_cliente():
-
-    print("\n" + "=" * 50)
-    print("✏️ ATUALIZAR CLIENTE")
-    print("=" * 50)
-
+def atualizar_cliente(conn):
     try:
-
-        id_cliente = int(
-            input("Digite o ID do cliente: ")
+        cliente_id = int(
+            input("ID do cliente que deseja atualizar: ")
         )
 
     except ValueError:
-
-        print("❌ Digite um ID válido.")
+        print("Digite um ID válido.")
         return
 
-    novo_email = input(
-        "Digite o novo e-mail: "
-    ).strip()
+    novo_nome = input("Novo nome: ").strip()
+    novo_email = input("Novo e-mail: ").strip()
 
-    if novo_email == "":
-        print("❌ O e-mail não pode ficar vazio.")
+    if not novo_nome or not novo_email:
+        print("Nome e e-mail são obrigatórios.")
         return
 
-    conexao = conectar()
-
-    if conexao is None:
-        return
-
-    cursor = None
+    cursor = conn.cursor()
 
     try:
-
-        cursor = conexao.cursor()
-
         cursor.execute("""
             UPDATE clientes
-            SET email = %s
-            WHERE id = %s;
-        """, (novo_email, id_cliente))
+            SET nome = %s,
+                email = %s
+            WHERE id = %s
+        """, (novo_nome, novo_email, cliente_id))
 
         if cursor.rowcount == 0:
-
-            print("❌ Cliente não encontrado.")
-
-        else:
-
-            conexao.commit()
-
-            print("✅ E-mail atualizado com sucesso!")
-
-    except psycopg2.IntegrityError as erro:
-
-        conexao.rollback()
-
-        if "unique" in str(erro).lower():
-
-            print("❌ Esse e-mail já pertence a outro cliente.")
+            print("Cliente não encontrado.")
+            conn.rollback()
 
         else:
+            conn.commit()
+            print("Cliente atualizado com sucesso!")
 
-            print("❌ Erro de integridade:")
-            print(erro)
-
-    except psycopg2.Error as erro:
-
-        conexao.rollback()
-
-        print("❌ Erro ao atualizar cliente:")
-        print(erro)
+    except Error as erro:
+        conn.rollback()
+        print(f"Erro ao atualizar cliente: {erro}")
 
     finally:
-
-        if cursor:
-            cursor.close()
-
-        conexao.close()
+        cursor.close()
 
 
 # =========================================================
-# EXCLUIR CLIENTE
+# CLIENTES - DELETAR
 # =========================================================
 
-def excluir_cliente():
-
-    print("\n" + "=" * 50)
-    print("🗑️ EXCLUIR CLIENTE")
-    print("=" * 50)
-
+def deletar_cliente(conn):
     try:
-
-        id_cliente = int(
-            input("Digite o ID do cliente que deseja excluir: ")
+        cliente_id = int(
+            input("ID do cliente que deseja excluir: ")
         )
 
     except ValueError:
-
-        print("❌ Digite um ID válido.")
+        print("Digite um ID válido.")
         return
 
-    conexao = conectar()
-
-    if conexao is None:
-        return
-
-    cursor = None
+    cursor = conn.cursor()
 
     try:
-
-        cursor = conexao.cursor()
-
-        cursor.execute("""
-            SELECT nome
-            FROM clientes
-            WHERE id = %s;
-        """, (id_cliente,))
-
-        cliente = cursor.fetchone()
-
-        if cliente is None:
-
-            print("❌ Cliente não encontrado.")
-            return
-
-        print(f"\nCliente encontrado: {cliente[0]}")
-
-        confirmar = input(
-            "Tem certeza que deseja excluir? (s/n): "
-        ).strip().lower()
-
-        if confirmar != "s":
-
-            print("❌ Operação cancelada.")
-            return
-
         cursor.execute("""
             DELETE FROM clientes
-            WHERE id = %s;
-        """, (id_cliente,))
+            WHERE id = %s
+        """, (cliente_id,))
 
-        conexao.commit()
+        if cursor.rowcount == 0:
+            print("Cliente não encontrado.")
+            conn.rollback()
 
-        print("✅ Cliente excluído com sucesso!")
+        else:
+            conn.commit()
+            print("Cliente excluído com sucesso!")
 
-    except psycopg2.IntegrityError:
-
-        conexao.rollback()
-
-        print(
-            "\n⚠️ Esse cliente possui vendas cadastradas "
-            "e não pode ser excluído."
-        )
-
-    except psycopg2.Error as erro:
-
-        conexao.rollback()
-
-        print("❌ Erro ao excluir cliente:")
-        print(erro)
+    except Error as erro:
+        conn.rollback()
+        print("Não foi possível excluir o cliente.")
+        print("Ele pode possuir vendas cadastradas.")
+        print(f"Detalhes: {erro}")
 
     finally:
-
-        if cursor:
-            cursor.close()
-
-        conexao.close()
+        cursor.close()
 
 
 # =========================================================
-# CADASTRAR PRODUTO
+# CLIENTES - FILTRAR
 # =========================================================
 
-def cadastrar_produto():
-
-    print("\n" + "=" * 50)
-    print("📦 CADASTRAR PRODUTO")
-    print("=" * 50)
-
-    nome = input(
-        "Digite o nome do produto: "
+def filtrar_clientes(conn):
+    inicio = input(
+        "Digite o começo do nome (ex.: A): "
     ).strip()
 
-    if nome == "":
-        print("❌ O nome do produto é obrigatório.")
+    if not inicio:
+        print("Digite pelo menos uma letra.")
         return
 
-    try:
+    cursor = conn.cursor()
 
-        preco = Decimal(
-            input("Digite o preço do produto: ")
-            .replace(",", ".")
+    try:
+        cursor.execute("""
+            SELECT id, nome, email
+            FROM clientes
+            WHERE nome ILIKE %s
+            ORDER BY nome
+        """, (inicio + "%",))
+
+        clientes = cursor.fetchall()
+
+        print("\n====== RESULTADO DA BUSCA ======")
+
+        if not clientes:
+            print("Nenhum cliente encontrado.")
+
+        else:
+            for cliente in clientes:
+                print(
+                    f"ID: {cliente[0]} | "
+                    f"Nome: {cliente[1]} | "
+                    f"E-mail: {cliente[2]}"
+                )
+
+    except Error as erro:
+        print(f"Erro ao filtrar clientes: {erro}")
+
+    finally:
+        cursor.close()
+
+
+# =========================================================
+# PRODUTOS - INSERIR
+# =========================================================
+
+def inserir_produto(conn):
+    nome = input("Nome do produto: ").strip()
+
+    try:
+        preco = float(
+            input("Preço: ").replace(",", ".")
         )
 
         estoque = int(
-            input("Digite a quantidade em estoque: ")
+            input("Quantidade em estoque: ")
         )
 
-    except (InvalidOperation, ValueError):
-
-        print("❌ Preço ou estoque inválido.")
+    except ValueError:
+        print("Preço ou estoque inválido.")
         return
 
-    if preco < 0:
-
-        print("❌ O preço não pode ser negativo.")
+    if not nome or preco < 0 or estoque < 0:
+        print("Informe valores válidos.")
         return
 
-    if estoque < 0:
-
-        print("❌ O estoque não pode ser negativo.")
-        return
-
-    conexao = conectar()
-
-    if conexao is None:
-        return
-
-    cursor = None
+    cursor = conn.cursor()
 
     try:
-
-        cursor = conexao.cursor()
-
         cursor.execute("""
             INSERT INTO produtos (nome, preco, estoque)
-            VALUES (%s, %s, %s);
+            VALUES (%s, %s, %s)
         """, (nome, preco, estoque))
 
-        conexao.commit()
+        conn.commit()
+        print("Produto cadastrado com sucesso!")
 
-        print("✅ Produto cadastrado com sucesso!")
-
-    except psycopg2.Error as erro:
-
-        conexao.rollback()
-
-        print("❌ Erro ao cadastrar produto:")
-        print(erro)
+    except Error as erro:
+        conn.rollback()
+        print(f"Erro ao cadastrar produto: {erro}")
 
     finally:
-
-        if cursor:
-            cursor.close()
-
-        conexao.close()
+        cursor.close()
 
 
 # =========================================================
-# LISTAR PRODUTOS
+# PRODUTOS - CONSULTAR
 # =========================================================
 
-def listar_produtos():
-
-    conexao = conectar()
-
-    if conexao is None:
-        return
-
-    cursor = None
+def listar_produtos(conn):
+    cursor = conn.cursor()
 
     try:
-
-        cursor = conexao.cursor()
-
         cursor.execute("""
             SELECT id, nome, preco, estoque
             FROM produtos
-            ORDER BY id;
+            ORDER BY id
         """)
 
         produtos = cursor.fetchall()
 
-        print("\n" + "=" * 75)
-        print("📦 PRODUTOS CADASTRADOS")
-        print("=" * 75)
+        print("\n========== PRODUTOS ==========")
 
         if not produtos:
-
             print("Nenhum produto cadastrado.")
 
         else:
-
             for produto in produtos:
-
                 print(
                     f"ID: {produto[0]} | "
                     f"Produto: {produto[1]} | "
@@ -556,248 +380,163 @@ def listar_produtos():
                     f"Estoque: {produto[3]}"
                 )
 
-    except psycopg2.Error as erro:
-
-        print("❌ Erro ao listar produtos:")
-        print(erro)
+    except Error as erro:
+        print(f"Erro ao consultar produtos: {erro}")
 
     finally:
-
-        if cursor:
-            cursor.close()
-
-        conexao.close()
+        cursor.close()
 
 
 # =========================================================
-# REALIZAR VENDA
+# VENDAS - REGISTRAR
 # =========================================================
 
-def realizar_venda():
-
-    print("\n" + "=" * 50)
-    print("🛒 REALIZAR VENDA")
-    print("=" * 50)
-
+def registrar_venda(conn):
     try:
-
         cliente_id = int(
-            input("Digite o ID do cliente: ")
+            input("ID do cliente: ")
         )
 
         produto_id = int(
-            input("Digite o ID do produto: ")
+            input("ID do produto: ")
         )
 
         quantidade = int(
-            input("Digite a quantidade: ")
+            input("Quantidade: ")
         )
 
     except ValueError:
-
-        print("❌ Digite apenas números válidos.")
+        print("Digite valores numéricos válidos.")
         return
 
     if quantidade <= 0:
-
-        print("❌ A quantidade deve ser maior que zero.")
+        print("A quantidade deve ser maior que zero.")
         return
 
-    conexao = conectar()
-
-    if conexao is None:
-        return
-
-    cursor = None
+    cursor = conn.cursor()
 
     try:
 
-        cursor = conexao.cursor()
-
-        # -------------------------------------------------
-        # VERIFICAR CLIENTE
-        # -------------------------------------------------
-
+        # Verificar cliente
         cursor.execute("""
-            SELECT id, nome
+            SELECT id
             FROM clientes
-            WHERE id = %s;
+            WHERE id = %s
         """, (cliente_id,))
 
         cliente = cursor.fetchone()
 
         if cliente is None:
-
-            print("❌ Cliente não encontrado.")
+            print("Cliente não encontrado.")
+            conn.rollback()
             return
 
-        # -------------------------------------------------
-        # VERIFICAR PRODUTO
-        # -------------------------------------------------
-
+        # Verificar produto
         cursor.execute("""
             SELECT id, nome, preco, estoque
             FROM produtos
-            WHERE id = %s;
+            WHERE id = %s
         """, (produto_id,))
 
         produto = cursor.fetchone()
 
         if produto is None:
-
-            print("❌ Produto não encontrado.")
+            print("Produto não encontrado.")
+            conn.rollback()
             return
 
-        preco = produto[2]
-        estoque = produto[3]
-
-        # -------------------------------------------------
-        # VERIFICAR ESTOQUE
-        # -------------------------------------------------
-
-        if quantidade > estoque:
-
+        # Verificar estoque
+        if produto[3] < quantidade:
             print(
-                f"❌ Estoque insuficiente.\n"
-                f"Disponível: {estoque}"
+                f"Estoque insuficiente. "
+                f"Disponível: {produto[3]}"
             )
-
+            conn.rollback()
             return
 
-        # -------------------------------------------------
-        # CALCULAR TOTAL
-        # -------------------------------------------------
-
-        valor_total = preco * quantidade
-
-        # -------------------------------------------------
-        # REGISTRAR VENDA
-        # -------------------------------------------------
-
+        # Registrar venda
         cursor.execute("""
             INSERT INTO vendas
-            (
-                cliente_id,
-                produto_id,
-                quantidade,
-                valor_total
-            )
-            VALUES (%s, %s, %s, %s);
-        """, (
-            cliente_id,
-            produto_id,
-            quantidade,
-            valor_total
-        ))
+                (cliente_id, produto_id, quantidade)
+            VALUES
+                (%s, %s, %s)
+        """, (cliente_id, produto_id, quantidade))
 
-        # -------------------------------------------------
-        # ATUALIZAR ESTOQUE
-        # -------------------------------------------------
-
+        # Atualizar estoque
         cursor.execute("""
             UPDATE produtos
             SET estoque = estoque - %s
-            WHERE id = %s;
-        """, (
-            quantidade,
-            produto_id
-        ))
+            WHERE id = %s
+        """, (quantidade, produto_id))
 
-        conexao.commit()
+        conn.commit()
 
-        print("\n" + "=" * 55)
-        print("🛒 VENDA REALIZADA COM SUCESSO!")
-        print("=" * 55)
+        total = produto[2] * quantidade
 
-        print(f"Cliente: {cliente[1]}")
+        print("\nVenda registrada com sucesso!")
         print(f"Produto: {produto[1]}")
         print(f"Quantidade: {quantidade}")
-        print(f"Preço unitário: R$ {preco:.2f}")
-        print(f"Valor total: R$ {valor_total:.2f}")
+        print(f"Total: R$ {total:.2f}")
 
-        print("=" * 55)
-
-    except psycopg2.Error as erro:
-
-        conexao.rollback()
-
-        print("❌ Erro ao realizar venda:")
-        print(erro)
+    except Error as erro:
+        conn.rollback()
+        print(f"Erro ao registrar venda: {erro}")
 
     finally:
-
-        if cursor:
-            cursor.close()
-
-        conexao.close()
+        cursor.close()
 
 
 # =========================================================
-# LISTAR VENDAS
+# VENDAS - CONSULTAR
 # =========================================================
 
-def listar_vendas():
-
-    conexao = conectar()
-
-    if conexao is None:
-        return
-
-    cursor = None
+def listar_vendas(conn):
+    cursor = conn.cursor()
 
     try:
-
-        cursor = conexao.cursor()
-
         cursor.execute("""
             SELECT
                 v.id,
                 c.nome,
                 p.nome,
                 v.quantidade,
-                v.valor_total,
+                p.preco,
+                v.quantidade * p.preco AS total,
                 v.data_venda
             FROM vendas v
-            JOIN clientes c
-                ON v.cliente_id = c.id
-            JOIN produtos p
-                ON v.produto_id = p.id
-            ORDER BY v.id;
+
+            INNER JOIN clientes c
+                ON c.id = v.cliente_id
+
+            INNER JOIN produtos p
+                ON p.id = v.produto_id
+
+            ORDER BY v.id
         """)
 
         vendas = cursor.fetchall()
 
-        print("\n" + "=" * 80)
-        print("💰 VENDAS REALIZADAS")
-        print("=" * 80)
+        print("\n========== VENDAS ==========")
 
         if not vendas:
-
-            print("Nenhuma venda realizada.")
+            print("Nenhuma venda registrada.")
 
         else:
-
             for venda in vendas:
+                print(
+                    f"Venda: {venda[0]} | "
+                    f"Cliente: {venda[1]} | "
+                    f"Produto: {venda[2]} | "
+                    f"Quantidade: {venda[3]} | "
+                    f"Total: R$ {venda[5]:.2f} | "
+                    f"Data: {venda[6]}"
+                )
 
-                print(f"ID da venda: {venda[0]}")
-                print(f"Cliente: {venda[1]}")
-                print(f"Produto: {venda[2]}")
-                print(f"Quantidade: {venda[3]}")
-                print(f"Valor total: R$ {venda[4]:.2f}")
-                print(f"Data: {venda[5]}")
-                print("-" * 80)
-
-    except psycopg2.Error as erro:
-
-        print("❌ Erro ao listar vendas:")
-        print(erro)
+    except Error as erro:
+        print(f"Erro ao consultar vendas: {erro}")
 
     finally:
-
-        if cursor:
-            cursor.close()
-
-        conexao.close()
+        cursor.close()
 
 
 # =========================================================
@@ -806,79 +545,80 @@ def listar_vendas():
 
 def menu():
 
-    print("\n🔄 Inicializando sistema...")
+    conn = conectar()
 
-    if not criar_tabelas():
-
-        print("\n❌ Não foi possível iniciar o sistema.")
-        print("Verifique se o PostgreSQL está funcionando.")
+    if conn is None:
         return
 
-    while True:
+    try:
 
-        print("\n")
-        print("=" * 60)
-        print("       🛒 SISTEMA DE GERENCIAMENTO DE VENDAS")
-        print("=" * 60)
+        criar_tabelas(conn)
 
-        print("\n👥 CLIENTES")
-        print("1 - Cadastrar cliente")
-        print("2 - Listar clientes")
-        print("3 - Atualizar e-mail")
-        print("4 - Excluir cliente")
+        while True:
 
-        print("\n📦 PRODUTOS")
-        print("5 - Cadastrar produto")
-        print("6 - Listar produtos")
+            print("""
+=========================================================
+       SISTEMA DE GERENCIAMENTO DE VENDAS
+=========================================================
 
-        print("\n💰 VENDAS")
-        print("7 - Realizar venda")
-        print("8 - Listar vendas")
+CLIENTES
+1 - Cadastrar cliente
+2 - Listar clientes
+3 - Atualizar cliente
+4 - Excluir cliente
+5 - Filtrar clientes por nome
 
-        print("\n0 - Sair")
+PRODUTOS
+6 - Cadastrar produto
+7 - Listar produtos
 
-        opcao = input("\nEscolha uma opção: ").strip()
+VENDAS
+8 - Registrar venda
+9 - Listar vendas
 
-        if opcao == "1":
+0 - Sair
+=========================================================
+""")
 
-            cadastrar_cliente()
+            opcao = input("Escolha uma opção: ").strip()
 
-        elif opcao == "2":
+            if opcao == "1":
+                inserir_cliente(conn)
 
-            listar_clientes()
+            elif opcao == "2":
+                listar_clientes(conn)
 
-        elif opcao == "3":
+            elif opcao == "3":
+                atualizar_cliente(conn)
 
-            atualizar_cliente()
+            elif opcao == "4":
+                deletar_cliente(conn)
 
-        elif opcao == "4":
+            elif opcao == "5":
+                filtrar_clientes(conn)
 
-            excluir_cliente()
+            elif opcao == "6":
+                inserir_produto(conn)
 
-        elif opcao == "5":
+            elif opcao == "7":
+                listar_produtos(conn)
 
-            cadastrar_produto()
+            elif opcao == "8":
+                registrar_venda(conn)
 
-        elif opcao == "6":
+            elif opcao == "9":
+                listar_vendas(conn)
 
-            listar_produtos()
+            elif opcao == "0":
+                print("\nPrograma encerrado. Até mais!")
+                break
 
-        elif opcao == "7":
+            else:
+                print("\nOpção inválida. Tente novamente.")
 
-            realizar_venda()
-
-        elif opcao == "8":
-
-            listar_vendas()
-
-        elif opcao == "0":
-
-            print("\n👋 Sistema encerrado. Até mais!")
-            break
-
-        else:
-
-            print("\n❌ Opção inválida. Escolha uma opção do menu.")
+    finally:
+        conn.close()
+        print("Conexão com o PostgreSQL encerrada.")
 
 
 # =========================================================
@@ -886,12 +626,4 @@ def menu():
 # =========================================================
 
 if __name__ == "__main__":
-    menu() 
-
-    DB_CONFIG = {
-    "host": "localhost",
-    "database": "sistema_vendas",
-    "user": "postgres",
-    "password": "1234",
-    "port": "5432"
-}
+    menu()
